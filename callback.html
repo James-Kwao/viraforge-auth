@@ -1,45 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ViraForge Redirecting...</title>
-    <style>
-        body { background-color: #0A0A0B; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .loader { border: 4px solid #1A1A1C; border-top: 4px solid #6C63FF; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    <title>ViraForge Auth Success</title>
 </head>
-<body>
+<body style="background: #0A0A0B; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
     <div style="text-align: center;">
-        <div class="loader" style="margin: 0 auto 20px;"></div>
-        <p>Connecting to the Forge...</p>
+        <h2>Connection Successful</h2>
+        <p>Redirecting back to the Forge...</p>
     </div>
 
     <script>
-        window.onload = function() {
-            // 1. Get query params from the URL (e.g., ?code=123&state=TikTok)
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const platform = urlParams.get('state'); // Most platforms use 'state' for the platform name
+        // 1. Grab params from URL: callback.html?code=XYZ&state=TikTok
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const platform = urlParams.get('state');
 
-            if (code && platform) {
-                // 2. Construct your custom URI scheme
-                const appUrl = `viraforge://auth-callback?code=${code}&platform=${platform}`;
-                
-                // 3. Bounce to the app
-                window.location.replace(appUrl);
-                
-                // Fallback: If the app doesn't open after 2 seconds, show a manual link
-                setTimeout(() => {
-                    document.body.innerHTML = `
-                        <div style="text-align: center; padding: 20px;">
-                            <p>If the app didn't open automatically:</p>
-                            <a href="${appUrl}" style="color: #6C63FF; text-decoration: none; font-weight: bold;">Click here to return to ViraForge</a>
-                        </div>`;
-                }, 2000);
-            } else {
-                document.body.innerHTML = "<p>Error: No authentication code received.</p>";
-            }
-        };
+        if (code && platform) {
+            // 2. Open the Flutter app using the custom scheme
+            // We pass the code and platform so Flutter knows what to verify
+            const deepLink = `viraforge://auth-callback?code=${code}&platform=${platform}`;
+            window.location.href = deepLink;
+
+            // Optional: Fallback button if auto-redirect fails
+            setTimeout(() => {
+                document.body.innerHTML += `<a href="${deepLink}" style="color: #6C63FF;">Click here if not redirected</a>`;
+            }, 2500);
+        } else {
+            document.body.innerHTML = "<h2>Error: No auth code found.</h2>";
+        }
     </script>
 </body>
 </html>
