@@ -12,16 +12,21 @@ async function scrapeTrends() {
       }
     });
 
-    // FIX: Escape ampersands that are not already part of an entity
-    // This prevents the "Invalid character in entity name" error
-    const sanitizedData = response.data.replace(/&(?!(?:apos|quot|[gl]t|amp);|#)/g, '&amp;');
+    // 1. STUBBORN AMPERSAND FIX
+    // First, escape every '&' to '&amp;'
+    // Then, fix cases where we accidentally double-escaped valid entities (e.g., &amp;amp;)
+    let cleanXml = response.data
+      .replace(/&/g, '&amp;')
+      .replace(/&amp;(amp|lt|gt|quot|apos);/g, '&$1;');
 
     const parser = new xml2js.Parser({ 
-      explicitArray: false, // Simplifies the resulting JSON structure
-      trim: true 
+      explicitArray: false,
+      trim: true,
+      // Disable strict mode if the parser supports it to ignore minor XML errors
+      strict: false 
     });
     
-    const result = await parser.parseStringPromise(sanitizedData);
+    const result = await parser.parseStringPromise(cleanXml);
     
     const items = result.rss.channel.item;
     const trends = (Array.isArray(items) ? items : [items]).slice(0, 15).map(item => ({
