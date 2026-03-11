@@ -4,7 +4,6 @@ const fs = require('fs');
 
 async function scrapeTrends() {
   try {
-    // RSS Feed for Top Stories (US/English)
     const url = 'https://news.google.com';
     
     const response = await axios.get(url, {
@@ -13,18 +12,23 @@ async function scrapeTrends() {
       }
     });
 
-    // Parse XML to JSON
-    const parser = new xml2js.Parser();
-    const result = await parser.parseStringPromise(response.data);
+    // FIX: Escape ampersands that are not already part of an entity
+    // This prevents the "Invalid character in entity name" error
+    const sanitizedData = response.data.replace(/&(?!(?:apos|quot|[gl]t|amp);|#)/g, '&amp;');
+
+    const parser = new xml2js.Parser({ 
+      explicitArray: false, // Simplifies the resulting JSON structure
+      trim: true 
+    });
     
-    // Extract items from the RSS channel
-    const items = result.rss.channel[0].item;
+    const result = await parser.parseStringPromise(sanitizedData);
     
-    const trends = items.slice(0, 15).map(item => ({
-      title: item.title[0],
-      url: item.link[0],
-      source: item.source ? item.source[0]._ : "Google News",
-      timestamp: item.pubDate[0],
+    const items = result.rss.channel.item;
+    const trends = (Array.isArray(items) ? items : [items]).slice(0, 15).map(item => ({
+      title: item.title,
+      url: item.link,
+      source: item.source?._ || item.source || "Google News",
+      timestamp: item.pubDate,
       platform: "Google News",
       category: "Live Trend"
     }));
