@@ -18,11 +18,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' # Use 22 to be safe
-          cache: 'npm'      # Added caching to speed up installs
+          node-version: '22'
+          # REMOVED cache: 'npm' to fix the "lock file not found" error
 
       - name: Install dependencies
-        run: npm install axios cheerio
+        # Use 'npm install' instead of 'npm ci' if you don't have a lock file
+        run: npm install axios cheerio 
 
       - name: Run Scraper
         run: node scraper.js
