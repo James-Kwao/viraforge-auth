@@ -1,5 +1,4 @@
 const axios = require('axios');
-const xml2js = require('xml2js');
 const fs = require('fs');
 
 async function scrapeTrends() {
@@ -13,45 +12,41 @@ async function scrapeTrends() {
       }
     });
 
-    // Deep clean XML to prevent parsing errors
-    const cleanXml = response.data
-      .replace(/&/g, '&amp;')
-      .replace(/&amp;(amp|lt|gt|quot|apos);/g, '&$1;');
+    const rawData = response.data;
+    const trends = [];
 
-    const parser = new xml2js.Parser({ 
-      explicitArray: false,
-      mergeAttrs: true,
-      normalize: true
-    });
-    
-    const result = await parser.parseStringPromise(cleanXml);
-    
-    // 1. SAFE NAVIGATION: Check if the path rss -> channel -> item exists
-    const channel = result?.rss?.channel;
-    if (!channel || !channel.item) {
-      throw new Error("RSS structure invalid or empty. Check the source URL.");
+    // Use Regex to find <item> blocks
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+
+    while ((match = itemRegex.exec(rawData)) !== null && trends.length < 15) {
+      const itemContent = match[1];
+
+      // Extract title and link using specific regex for XML tags
+      const titleMatch = itemContent.match(/<title>(.*?)<\/title>/);
+      const linkMatch = itemContent.match(/<link>(.*?)<\/link>/);
+      const pubDateMatch = itemContent.match(/<pubDate>(.*?)<\/pubDate>/);
+
+      if (titleMatch && linkMatch) {
+        trends.push({
+          title: titleMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim(), // Clean CDATA
+          url: linkMatch[1].trim(),
+          timestamp: pubDateMatch ? pubDateMatch[1] : new Date().toISOString(),
+          platform: "Google News",
+          category: "Live Trend"
+        });
+      }
     }
 
-    const rawItems = Array.isArray(channel.item) ? channel.item : [channel.item];
-    
-    const trends = rawItems.slice(0, 15).map(item => ({
-      title: item.title || "No Title",
-      url: item.link || url,
-      source: item.source?.['_'] || item.source || "Google News",
-      timestamp: item.pubDate || new Date().toISOString(),
-      platform: "Google News",
-      category: "Live Trend"
-    }));
+    if (trends.length === 0) {
+      throw new Error("Regex failed to find any news items.");
+    }
 
     fs.writeFileSync('trends.json', JSON.stringify(trends, null, 2));
     console.log(`Successfully updated trends.json with ${trends.length} items.`);
     
   } catch (error) {
     console.error('Scrape failed:', error.message);
-    // Create an empty array if it fails so the JSON stays valid
-    if (!fs.existsSync('trends.json')) {
-        fs.writeFileSync('trends.json', JSON.stringify([]));
-    }
     process.exit(1);
   }
 }
