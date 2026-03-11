@@ -7,33 +7,38 @@ async function scrapeTrends() {
     const url = 'https://news.google.com';
     
     const response = await axios.get(url, {
+      timeout: 10000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       }
     });
 
-    // 1. STUBBORN AMPERSAND FIX
-    // First, escape every '&' to '&amp;'
-    // Then, fix cases where we accidentally double-escaped valid entities (e.g., &amp;amp;)
-    let cleanXml = response.data
+    // Deep clean XML to prevent parsing errors
+    const cleanXml = response.data
       .replace(/&/g, '&amp;')
       .replace(/&amp;(amp|lt|gt|quot|apos);/g, '&$1;');
 
     const parser = new xml2js.Parser({ 
       explicitArray: false,
-      trim: true,
-      // Disable strict mode if the parser supports it to ignore minor XML errors
-      strict: false 
+      mergeAttrs: true,
+      normalize: true
     });
     
     const result = await parser.parseStringPromise(cleanXml);
     
-    const items = result.rss.channel.item;
-    const trends = (Array.isArray(items) ? items : [items]).slice(0, 15).map(item => ({
-      title: item.title,
-      url: item.link,
-      source: item.source?._ || item.source || "Google News",
-      timestamp: item.pubDate,
+    // 1. SAFE NAVIGATION: Check if the path rss -> channel -> item exists
+    const channel = result?.rss?.channel;
+    if (!channel || !channel.item) {
+      throw new Error("RSS structure invalid or empty. Check the source URL.");
+    }
+
+    const rawItems = Array.isArray(channel.item) ? channel.item : [channel.item];
+    
+    const trends = rawItems.slice(0, 15).map(item => ({
+      title: item.title || "No Title",
+      url: item.link || url,
+      source: item.source?.['_'] || item.source || "Google News",
+      timestamp: item.pubDate || new Date().toISOString(),
       platform: "Google News",
       category: "Live Trend"
     }));
@@ -43,6 +48,10 @@ async function scrapeTrends() {
     
   } catch (error) {
     console.error('Scrape failed:', error.message);
+    // Create an empty array if it fails so the JSON stays valid
+    if (!fs.existsSync('trends.json')) {
+        fs.writeFileSync('trends.json', JSON.stringify([]));
+    }
     process.exit(1);
   }
 }
