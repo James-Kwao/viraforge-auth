@@ -25,6 +25,9 @@ jobs:
         # Use 'npm install' instead of 'npm ci' if you don't have a lock file
         run: npm install axios cheerio 
 
+      - name: Install dependencies
+        run: npm install axios xml2js # Added xml2js
+
       - name: Run Scraper
         run: node scraper.js
 
